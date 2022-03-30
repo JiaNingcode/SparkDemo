@@ -5,6 +5,7 @@ public class java_test {
 
         System.out.println("http");
         int a= 10;
+        int b=5;
     }
 }
 
