@@ -4,6 +4,7 @@ public class java_test {
     public static void main(String[] args) {
 
         System.out.println("http");
+        int a= 10;
     }
 }
 
