@@ -62,7 +62,8 @@ Hadoop2的一个公共模块和三大核心组件组成了四个模块，简介�
 
 官网http://spark.apache.org/
 
-![](./image/20191113160920.png)
+![Uploading image.png…]()
+
 
 Spark是一种快速、通用、可扩展的大数据分析引擎，2009年诞生于加州大学伯克利分校AMPLab，2010年开源，2013年6月成为Apache孵化项目，2014年2月成为Apache顶级项目。项目是用Scala进行编写。
 
