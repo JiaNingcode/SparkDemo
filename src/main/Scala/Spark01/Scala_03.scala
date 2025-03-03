@@ -438,7 +438,42 @@ class wildcard{
   addAnimal(animalShelter)
 }
 
+/*
+下划线使用总结
+1、用于类中的var属性，使用默认值。
+2、用于高阶函数的第一种用法，表示函数自身。
+3、匿名函数化简，用下划线代替变量。
+4、用于导包下的所有内容。
+5、用于起别名时表示匿名。
+6、用于模式匹配表示任意数据。
+ */
+class UnderLine{
+  //  1、用于类中的var属性，使用默认值。
+  var name1: String = _
 
+  //  2、用于高阶函数的第一种用法，表示函数自身。
+  def sayHi(name: String): Unit = {
+    println(s"hi $name")
+  }
+
+  val function: String => Unit = sayHi _
+
+  //  3、匿名函数化简，用下划线代替变量。
+  val function01: (Int, Int) => Int = (a: Int, b: Int) => a + b
+  val function02: (Int, Int) => Int = _ + _
+
+  //  4、用于导包下的所有内容。
+  import scala.util.control.Breaks._
+
+  //  5、用于起别名时表示匿名。
+  import scala.util.control.{Breaks => _}
+
+  //  6、用于模式匹配表示任意数据。
+  10 match {
+    case 10 => "10"
+    case _ => "other"
+  }
+}
 
 
 
