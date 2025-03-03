@@ -269,8 +269,87 @@ class PartialFunctionCase{
 }
 
 /**
- * 隐式转换和隐式参数
+ * 隐式转换 : 使用implicit关键字修饰的带有单个参数的方法
+ * 隐式参数 : 使用implicit关键字修饰的变量
+ * （implicit 出现于scala 2.1.版本）
+ *
+ * 作用 ： 隐式的对类的方法进行增强，丰富类库功能
  */
+// 定义隐式类，将File转换成定义的隐式类RichFile
+implicit class RichFile(val from : File){
+  def read : String = Source.fromFile(from.getPath).mkString
+}
+//使用隐式类做已有类的方法拓展
+//val contents : String = new File("xxx").read
+//println(contents)
+
+/*
+  隐式引用 : 如java.lang 包会被隐式引用到每个scala程序上
+  import java.lang._
+ */
+
+// 隐式转化 :可以在不改变代码结构的情况下, 将一种类型的值转换为另一种类型 ;
+class RichFile1(val from : File){
+  def read : String = Source.fromFile(from.getPath).mkString
+}
+object RichFile1 {
+  // 隐式转化方法 :隐式转换函数需要明确指定返回类型
+  implicit def file2RichFile(from: File): RichFile = new RichFile(from)
+}
+
+/*
+   使用隐式转化
+  import RichFile1._
+  print(new File("xxx"))
+ */
+
+/*
+    隐式类：提供了一种更简洁的方式来扩展现有类型的功能,隐式类必须定义在其它类、对象或包中, 并且只能有一个参数 .
+           在同一作用域内，不能有任何方法、成员或对象与隐式类同名
+ */
+object Helpers {
+  implicit class RichInt(val value: Int) {
+    // `n: => Int` 这种写法表示的是一个**懒求值参数**（lazy parameter）。与普通的参数不同，懒求值参数不会立即被计算.如果 `times` 方法没有被调用，那么 `n` 的计算就不会发生
+    def times(n: => Int): Int = value * n
+  }
+  // 调用
+  println(2 times 3) //输出6
+}
+
+/**
+ * 隐式转换函数
+ */
+class ImplicitToFunction{
+  val x = 1
+  // 在Scala.Predef对象定义了
+  implicit def int2Double(x : Int) :Double = x.toDouble
+  val double: Double = x.toDouble
+}
+
+/**
+ * 隐式参数：在定义函数时，支持在最后一组参数使用implicit，表名此为一组隐式参数，在调用时可以不用给隐式参数传参，编译器会自动寻找一个implicit标记过合适的值作为参数
+ */
+object Implicit_Parameter{
+  // 定义一个特质，方法为抽象方法需实现
+  trait Adder[T] {
+    def add(x:T,y:T):T
+  }
+
+  implicit val sum :Adder[Int] = new Adder[Int] {
+    override def add(x:Int , y:Int) : Int = x + y
+  }
+
+  // addTest 有隐式参数，当前作用域存在sum（被隐式标记），不用给隐式参数传参编译器可识别
+  def addTest(x:Int , y:Int)(implicit adder: Adder[Int]): Unit = {
+    adder.add(x,y)
+  }
+
+  addTest(1,2)
+  addTest(1,2)(sum)
+  addTest(1,2)(new Adder[Int] {
+    override def add(x: Int, y: Int): Int = x + y
+  })
+}
 
 
 /**
