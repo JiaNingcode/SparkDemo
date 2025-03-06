@@ -273,4 +273,24 @@ class Actions {
  *   (1) 都是用来重新分区的 repartition等价于 coalesce(numPartitions, shuffle = true).
  *   (2) coalesce 用来缩小分区，不会触发shuffle
  *   (3) repartition 用来扩大分区，会触发shuffle
+ *
+ * 4. cache、persist和checkpoint 比较
+ *   (1) **cache**：
+ *    - `cache`实际上是`persist(StorageLevel.MEMORY_ONLY)`的一个别名。
+ *    - 它将RDD（弹性分布式数据集）存储到内存中，以便后续操作可以重用这些数据，从而避免重复计算。
+ *    - 如果内存不足，Spark会根据LRU（最近最少使用）策略移除旧的数据。
+ *
+ *   (2) **persist**：
+ *    - `persist`允许用户指定不同的存储级别，如MEMORY_ONLY、MEMORY_AND_DISK等。
+ *    - 这意味着你可以选择将数据只存储在内存中，或者当内存不够时存储在磁盘上。
+ *    - 通过调用`persist`方法并传入适当的存储级别，可以更灵活地控制数据的存储方式。
+ *
+ *   (3) **checkpoint**：
+ *    - `checkpoint`主要用于容错和加速迭代算法。
+ *    - 它强制Spark将RDD写入HDFS，并且不会保留其血统（lineage），这有助于减少内存使用和提高容错性。
+ *    - 使用`checkpoint`后，如果原始数据丢失或损坏，可以通过检查点文件重新构建RDD，而不需要从头开始执行所有转换操作。
+ *    - 注意，使用`checkpoint`前需要先调用`sc.setCheckpointDir()`设置一个存储位置。
+ *
+ *    总结：
+ *    建议使用cache或是persist模式因为,不需要创建存储位置,并且默认存储到内存中计算速度快,而checkpoint需要手动创建存储位置和手动删除数据.若数据量非常庞大建议改用chechpoin
  */
