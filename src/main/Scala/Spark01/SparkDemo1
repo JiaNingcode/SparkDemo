@@ -1,0 +1,43 @@
+import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkConf, SparkContext}
+
+/**
+ * 手撸wordcount
+ */
+object SparkDemo1 extends App {
+  /**
+     需要创建SparkConf()对象 相当于MR中配置
+     1. 必传参数
+        1.1 setAppName() 设置任务的名称 不传默认是一个UUID产生名字
+     2 设置运行模式
+       2.1 不写这个参数可以打包提交集群
+       2.2 写这个参数设置本地模式
+            setMaster() 传入的参数有如下写法
+            "local"      --> 本地一个线程来进行任务处理
+            "local[数值]" --> 开始相应数值的线程来模拟spark集群运行任务 (数值类型-->使用当前数值个数来进行处理)
+            "local[*]"   --> 开始相应线程数来模拟spark集群运行任务     ( *    -->当前程序有多少空闲线程就用多少空闲线程处理)
+ */
+  // 设置参数
+  val conf = new SparkConf().setAppName("SparkWordCount").setMaster("local")
+  // 创建sparkContext对象将参数传入
+  val sc = new SparkContext(conf)
+
+  // 读取文件
+  val lines: RDD[String] = sc.textFile("src/main/file/words")
+
+  val words = lines.flatMap(_.split(" "))
+
+  val tuple: RDD[(String, Int)] = words.map((_, 1))
+
+  val value: RDD[(String, Int)] = tuple.reduceByKey(_ + _)
+
+  value.foreach(println)
+}
+
+/**
+ * spark 为什么比hive快
+ *   1. spark计算基于内存，mr中间结果需要保存到磁盘（磁盘io影响性能）
+ *   2. spark高容错，通过RDD可以通过血缘依赖重新计算丢失数据。mr只能重头执行计算，时间成本高
+ *   3. spark提供了行动和转化算子两大api，还有流计算。mr只提供map和reduce，没有流计算
+ *   4. spark生态丰富，性能强大。mr性能单一。理论上spark基于内存比mr快100倍，基于磁盘也要快10倍
+ */
