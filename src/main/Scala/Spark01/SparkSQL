@@ -1,0 +1,180 @@
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+
+object SparkSql {
+  def main(args: Array[String]): Unit = {
+    System.setProperty("hadoop.home.dir", "D:\\hadoop-2.7.6")
+
+    new RDDtoDF
+  }
+}
+
+/**
+ * DataFrame : DataFrame是RDD+Schema的集合,DataFrame是懒加载的
+ *       优点 : 性能上比RDD高（1.定制化内存管理 2.优化的执行计划）
+ *       缺点 : 编译期缺少类型安全 检查，容易导致运行时出错.
+ *
+ * DateSet : DataFrame=Dataset[Row] 可以通过as方法将Dataframe转换为Dataset
+ *       优点 : 既具有类型安全检查也具有Dataframe的查询优化特性。
+ */
+class SparkSqlCreate{
+  // 创建sparkSession的三种方式
+  /**
+   * 创建SparkSession方式1
+   * builder用于创建一个SparkSession。
+   * appName设置App的名字
+   * master设置运行模式(集群模式不用设置)
+   * getOrCreate 进行创建
+   */
+  private val session1: SparkSession = SparkSession.builder().appName("").master("local").getOrCreate()
+
+  /**
+   * 创建SparkSession方式2
+   * 先通过SparkConf创建配置对象
+   * SetAppName设置应用的名字
+   * SetMaster设置运行模式(集群模式不用设置)
+   * 在通过SparkSession创建对象
+   * 通过config传入conf配置对象来创建SparkSession
+   * getOrCreate 进行创建
+   */
+  private val conf: SparkConf = new SparkConf().setAppName("").setMaster("local")
+  private val session2: SparkSession = SparkSession.builder().config(conf).getOrCreate()
+
+  /**
+   * 创建SparkSession方式3(操作hive)
+   * builder用于创建一个SparkSession。
+   * appName设置App的名字
+   * master设置运行模式(集群模式不用设置)
+   * enableHiveSupport 开启hive操作 （1.支持 Hive 表：允许用户读取和写入 Hive 元数据存储中的表。 2.使用 HiveQL：可以执行标准的 Hive 查询语言（HQL）语句 3.Hive Metastore：能够连接到 Hive Metastore 数据库，从而访问 Hive 表的元数据 ）
+   * getOrCreate 进行创建
+   */
+  private val session3: SparkSession = SparkSession.builder().appName("").master("local").enableHiveSupport().getOrCreate()
+
+  session1.stop()
+  session2.stop()
+  session3.stop()
+}
+
+/**
+ * RDD、DataFrame、DataSet的转换 :
+ *   RDD转DataFrame有三种方法是
+ *     1.直接转换即使用元组的模式存储在转换
+ *     2.使用样例类的模式匹配Schema在转换
+ *     3.StructType直接指定Schema在转换
+ *
+ *   RDD转DataSet
+ *     1.使用样例类的模式匹配Schema在转换
+ *
+ *   DataSet和DataFrame之间的互相转换
+ *     1.DataSet转换DataFrame : 调用toDF方法,直接服用case class中定义的属性
+ *
+ *     2.DataFrame转换DataSet : 调用as[对应样例类类名]
+ *
+ *     3.DataSet和DataFrame转换为RDD : DataSet对象或DataFrame对象调用rdd方法就可以转换为rdd.
+ */
+class RDDtoDF{
+  /**
+   * RDD转DataFrame有三种方法是
+   * 1.直接转换即使用元组的模式存储在转换
+   */
+  val conf = new SparkConf().setAppName("test").setMaster("local")
+  val sc = new SparkContext(conf)
+  val rdd = sc.parallelize(Array("a","ab","abc","abcd"))
+  val spark = SparkSession.builder().config(conf).getOrCreate()
+
+  //这里是将数据转换为元组,数据量少可以使用这种方式
+  private val tuple: RDD[(String, Int)] = rdd.map(x => (x, x.length))
+  //如果需要RDD于DataFrame之间操作,那么需要引用 import spark.implicits._ [spark不是包名,是SparkSession对象]
+  import spark.implicits._
+  private val frame: DataFrame = tuple.toDF("string", "int")
+  frame.show
+
+
+  /**
+   * 2.StructType直接指定Schema在转换
+   * `StructType` 是 Apache Spark SQL 中的一个类，用于定义结构化数据的模式（schema）。
+   * 在处理复杂的数据类型时，如 JSON 数据或自定义对象，`StructType` 提供了一种方式来描述这些数据的结构。
+   * 它通常与 `StructField` 类一起使用，后者定义了单个字段的信息，包括字段名称、数据类型和是否可为空。
+   */
+  val lineRDD = sc.textFile("src/main/File/people.txt").map(x=>x.split(","))
+  //通过StructType直接指定每个字段的schema
+  val schema = StructType{
+    Seq(
+      StructField("name",StringType,true),
+      StructField("age",IntegerType,true)
+    )
+  }
+  //将rdd映射到rowRdd上
+  val rowRDD = lineRDD.map(x => Row(x(0),x(1).trim.toInt))
+  //将schema信息应用到rowRDD上
+  val peopleDF = spark.createDataFrame(rowRDD,schema)
+  peopleDF.show()
+
+  /**
+   * 3.使用样例类的模式匹配Schema在转换
+   */
+  val value: RDD[People] = lineRDD.map(x => People(x(0), x(1).trim.toInt))
+  import spark.implicits._
+
+  val frame1: DataFrame = value.toDF()
+  frame1.show
+  sc.stop()
+}
+case class People(name:String, age:Int)
+
+class RDDtoDS{
+  /**
+   * RDD转化为DS
+   * 样例类模式（反射获取）
+   */
+  val conf: SparkConf = new SparkConf().setAppName("rdd2ds").setMaster("local")
+  val sc = new SparkContext(conf)
+  val spark = SparkSession.builder().config(conf).getOrCreate()
+  val value: RDD[String] = sc.textFile("src/main/File/people.txt")
+  import spark.implicits._
+  val dataSet = value.map{
+    x => val para = x.split(",")
+      People(para(0),para(1).trim.toInt)
+  }.toDS()
+  dataSet.show()
+  sc.stop()
+}
+
+class DFtoDStoRDD{
+  // 环境参数
+  val conf: SparkConf = new SparkConf().setAppName("other").setMaster("local")
+  val sc = new SparkContext(conf)
+  val spark = SparkSession.builder().config(conf).getOrCreate()
+
+  val value: RDD[String] = sc.textFile("src/main/File/people.txt")
+
+  val rdd: RDD[People] = value.map {
+    x =>
+      val ele: Array[String] = x.split(",")
+      People(ele(0), ele(1).trim.toInt)
+  }
+
+  import spark.implicits._
+
+  // df
+  val df: DataFrame = rdd.toDF()
+  // ds
+  val ds: Dataset[People] = rdd.toDS()
+
+  // DataFrame转换成RDD
+  val df2RDD: RDD[Row] = df.rdd
+
+  // DataSet转换成RDD
+  val ds2RDD: RDD[People] = ds.rdd
+
+  // DataSet转换DataFrame
+  val dataFrame: DataFrame = ds.toDF()
+
+  // DataFrame转换DataSet
+  val dataSet: Dataset[People] = df.as[People]
+}
+
+
+
