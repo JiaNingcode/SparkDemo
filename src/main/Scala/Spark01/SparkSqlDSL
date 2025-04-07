@@ -1,0 +1,62 @@
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.{SparkConf, SparkContext}
+
+/**
+ * DSL（Domain-Specific Language，领域特定语言）风格语法是通过 DataFrame/Dataset API 提供的面向对象编程风格的接口。
+ * 它允许通过 方法链（Method Chaining）和 表达式构建器（Expression Builders）直接操作数据，而无需编写 SQL 查询。
+ * 这种风格语法简洁、类型安全，并且与 Scala/Java 的语法高度集成。
+ */
+object SparkSqlDSL {
+  def main(args: Array[String]): Unit = {
+    val conf: SparkConf = new SparkConf().setAppName("DSL").setMaster("local")
+    val sc = new SparkContext(conf)
+    val spark = SparkSession.builder().config(conf).getOrCreate()
+
+    val departmentDF: DataFrame = spark.read.json("src/main/File/department.json")
+    val employeeDF: DataFrame = spark.read.json("src/main/File/employee.json")
+
+
+    /**
+     * show() : 只显示千20条，过长字符串会被截取
+     * show(numRows:Int) : 显示 numRows 条
+     * show(truncate: Boolean) : 是否截取20个字符，默认为true。
+     * show(numRows: Int, truncate: Int) : 显示记录条数，以及截取字符个数，为0时表示不截取
+     */
+    employeeDF.show()
+    employeeDF.show(3,false)
+
+    /**
+     * collect : 获取DataFrame中的所有数据并返回一个Array对象
+     * collectAsList : 功能和collect类似，只不过将返回结构变成了List对象
+     */
+    departmentDF.collect()foreach(println(_))
+    departmentDF.collectAsList()
+
+    /**
+     * describe : 动态的传入一个或多个String类型的字段名，结果仍然为DataFrame对象，用于统计数值类型字段的统计值，比如count, mean, stddev, min, max等。
+     */
+    employeeDF.describe("age","name").show()
+
+    /**
+     * （1）first : 获取第一行记录
+     * （2）head : 获取第一行记录，head(n: Int)获取前n行记录
+     * （3）take(n: Int) : 获取前n行数据
+     * （4）takeAsList(n: Int) : 获取前n行数据，并以List的形式展现 以Row或者Array[Row]的形式返回一行或多行数据。first和head功能相同。
+     *                  take和takeAsList方法会将获得到的数据返回到Driver端，所以，使用这两个方法时需要注意数据量，以免Driver发生OutOfMemoryError。
+     */
+    println(employeeDF.first())
+
+    /**
+     * 条件查询 where 和 filter 使用效果相同
+     */
+    employeeDF.where("name = 'Leo'").show
+    employeeDF.where("depId = 3 or name = 'Leo'").show
+    employeeDF.filter("gender = 'male' ").show
+
+    /**
+     * 查询指定字段
+     */
+
+    sc.stop()
+  }
+}
